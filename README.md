@@ -4,6 +4,8 @@
 [![](https://img.shields.io/crates/v/bitr?label=crates.io%20version)](https://crates.io/crates/bitr)
 ![](https://shields.io/github/stars/siriusmart/bitr?style=social)
 
+***Read more in the <a href="https://siriusmart.github.io/bitscript" target=_blank>user manual</a> (including language syntax).***
+
 # Overview
 
 BitScript is like ***pseudocode to logic gates***, similar to how pseudocode is to logic. It can be used to test series of logic gates, as it *closely mimics how logic gates work*.
