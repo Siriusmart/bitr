@@ -1,0 +1,13 @@
+[book]
+authors = ["Siriusmart"]
+language = "en"
+multilingual = false
+src = "src"
+title = "A Guide to BitScript"
+description = "A short guide to writing BitScript."
+
+[output.html]
+default-theme = "ayu"
+preferred-dark-theme = "ayu"
+git-repository-url = "https://github.com/siriusmart/bitr/tree/master/docs"
+edit-url-template = "https://github.com/siriusmart/bitr/edit/master/docs/{path}"

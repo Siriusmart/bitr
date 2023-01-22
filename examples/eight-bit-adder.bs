@@ -1,0 +1,32 @@
+disp This is an 8-bit adder - it can add any two 8-bit numbers together and display the C.\n
+
+dclr A 8 0
+dclr B 8 0
+
+disp 'Enter the first number in denary (base 10): '
+inpt d A
+disp 'Enter the second number in denary (base 10): '
+inpt d B
+
+dclr U 7 0
+dclr C 8 0
+
+C[0] = XOR(A[0], B[0])
+U[0] = AND(A[0], B[0])
+C[1] = XOR(A[1], B[1], U[0])
+U[1] = OR(AND(XNOR(A[1], B[1], U[0]), NAND(NOT(A[1], B[1], U[0]))), AND(A[1], B[1], U[0]))
+C[2] = XOR(A[2], B[2], U[1])
+U[2] = OR(AND(XNOR(A[2], B[2], U[1]), NAND(NOT(A[2], B[2], U[1]))), AND(A[2], B[2], U[1]))
+C[3] = XOR(A[3], B[3], U[2])
+U[3] = OR(AND(XNOR(A[3], B[3], U[2]), NAND(NOT(A[3], B[3], U[2]))), AND(A[3], B[3], U[2]))
+C[4] = XOR(A[4], B[4], U[3])
+U[4] = OR(AND(XNOR(A[4], B[4], U[3]), NAND(NOT(A[4], B[4], U[3]))), AND(A[4], B[4], U[3]))
+C[5] = XOR(A[5], B[5], U[4])
+U[5] = OR(AND(XNOR(A[5], B[5], U[4]), NAND(NOT(A[5], B[5], U[4]))), AND(A[5], B[5], U[4]))
+C[6] = XOR(A[6], B[6], U[5])
+U[6] = OR(AND(XNOR(A[6], B[6], U[5]), NAND(NOT(A[6], B[6], U[5]))), AND(A[6], B[6], U[5]))
+C[7] = XOR(A[7], B[7], U[6])
+
+
+disp {A}+{B}={C}\n
+disp {DEN(A)}+{DEN(B)}={DEN(C)}\n
