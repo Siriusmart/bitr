@@ -8,7 +8,7 @@ repository = "https://github.com/siriusmart/bitr"
 license = "GPL-3.0-or-later"
 readme = "README.md"
 edition = "2021"
-keywords = ["bitscript", "bit", "logic", "gates", "language", "simulator"]
+keywords = ["bitscript","logic", "gates", "language", "simulator"]
 categories = ["simulation"]
 exclude = ["/docs", "/LICENSE", "/examples"]
 
