@@ -1,11 +1,8 @@
 use std::collections::HashMap;
 
-use crate::{
-    bools_to_string, char_to_bool, find_brackets, get_range, parse_n, run_gate, str_to_bools,
-    to_denary,
-};
+use crate::*;
 
-pub fn eval(line: &mut Vec<char>) -> Result<(), String> {
+pub fn eval(line: &mut Vec<char>, status: &mut Status) -> Result<(), String> {
     let mut e = Ok(());
 
     loop {
@@ -17,24 +14,62 @@ pub fn eval(line: &mut Vec<char>) -> Result<(), String> {
 
         e.as_ref()?;
 
-        let replace = match bracket_info.name.as_str() {
-            "HEX" => format!("{:X}", to_denary(&str_to_bools(&bracket_info.content)?)),
-            "DEN" => to_denary(&str_to_bools(&bracket_info.content)?).to_string(),
-            "OCT" => format!("{:o}", to_denary(&str_to_bools(&bracket_info.content)?)),
-            _ => {
-                let params = bracket_info
-                    .content
-                    .chars()
-                    .filter(|&c| c == '0' || c == '1')
-                    .map(|cell| match char_to_bool(cell) {
-                        Ok(cell) => cell,
-                        Err(err) => {
-                            e = Err(err);
-                            false
-                        }
-                    })
-                    .collect::<Vec<_>>();
-                run_gate(&bracket_info.name, &params)?
+        let replace = if let Some(lines) = status.components.get(&bracket_info.name) {
+            let (lines, mut component_status) = lines.clone();
+            component_status.inputs = bracket_info
+                .content
+                .split(',')
+                .map(str::to_string)
+                .collect();
+
+            let mut value = String::new();
+            while component_status.line_no < lines.len() {
+                match run_line(
+                    &mut lines[component_status.line_no].clone(),
+                    &mut component_status,
+                ) {
+                    Ok(None) => {}
+                    Ok(Some(val)) => {
+                        value = val;
+                        break;
+                    }
+                    Err(e) => {
+                        file_terminated(
+                            &e,
+                            component_status.line_no + 1,
+                            &lines[component_status.line_no],
+                        );
+                        return Err(format!(
+                            "error when executing component `{}`",
+                            bracket_info.name
+                        ));
+                    }
+                }
+
+                component_status.line_no += 1;
+            }
+
+            value
+        } else {
+            match bracket_info.name.as_str() {
+                "HEX" => format!("{:X}", to_denary(&str_to_bools(&bracket_info.content)?)),
+                "DEN" => to_denary(&str_to_bools(&bracket_info.content)?).to_string(),
+                "OCT" => format!("{:o}", to_denary(&str_to_bools(&bracket_info.content)?)),
+                _ => {
+                    let params = bracket_info
+                        .content
+                        .chars()
+                        .filter(|&c| c == '0' || c == '1')
+                        .map(|cell| match char_to_bool(cell) {
+                            Ok(cell) => cell,
+                            Err(err) => {
+                                e = Err(err);
+                                false
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    run_gate(&bracket_info.name, &params)?
+                }
             }
         };
 
@@ -44,10 +79,7 @@ pub fn eval(line: &mut Vec<char>) -> Result<(), String> {
     Ok(())
 }
 
-pub fn display_eval(
-    line: &mut Vec<char>,
-    variables: &HashMap<String, Vec<bool>>,
-) -> Result<(), String> {
+pub fn display_eval(line: &mut Vec<char>, status: &mut Status) -> Result<(), String> {
     loop {
         let bracket_info = match find_brackets('{', '}', line) {
             Ok(Some(info)) => info,
@@ -56,8 +88,8 @@ pub fn display_eval(
         };
 
         let mut content = bracket_info.content.chars().collect::<Vec<_>>();
-        replace_variables(&mut content, variables)?;
-        eval(&mut content)?;
+        replace_variables(&mut content, status)?;
+        eval(&mut content, status)?;
 
         line.splice(bracket_info.begin..bracket_info.end + 1, content);
     }
@@ -70,21 +102,8 @@ pub fn display_eval(
     Ok(())
 }
 
-pub fn replace_variables(
-    chars: &mut Vec<char>,
-    variables: &HashMap<String, Vec<bool>>,
-) -> Result<(), String> {
+pub fn replace_variables(chars: &mut Vec<char>, status: &mut Status) -> Result<(), String> {
     while let Some(bracket_info) = find_brackets('[', ']', chars)? {
-        let arr = match variables.get(&bracket_info.name) {
-            Some(arr) => arr,
-            None => {
-                return Err(format!(
-                    "use of undeclared variable `{}`",
-                    bracket_info.name
-                ))
-            }
-        };
-
         let value = if let [begin, end] = bracket_info
             .content
             .split("..")
@@ -93,8 +112,17 @@ pub fn replace_variables(
         {
             let mut begin = begin.chars().collect();
             let mut end = end.chars().collect();
-            eval(&mut begin)?;
-            eval(&mut end)?;
+            eval(&mut begin, status)?;
+            eval(&mut end, status)?;
+            let arr = match status.variables.get(&bracket_info.name) {
+                Some(arr) => arr,
+                None => {
+                    return Err(format!(
+                        "use of undeclared variable `{}`",
+                        bracket_info.name
+                    ))
+                }
+            };
 
             bools_to_string(
                 &get_range(
@@ -110,6 +138,15 @@ pub fn replace_variables(
             )
         } else {
             let index: usize = parse_n(&bracket_info.content)?;
+            let arr = match status.variables.get(&bracket_info.name) {
+                Some(arr) => arr,
+                None => {
+                    return Err(format!(
+                        "use of undeclared variable `{}`",
+                        bracket_info.name
+                    ))
+                }
+            };
             match arr.get(index) {
                 Some(&value) => (value as u8).to_string(),
                 None => {
@@ -126,7 +163,7 @@ pub fn replace_variables(
     }
 
     let mut s = chars.iter().collect::<String>();
-    replace_more_variables(&mut s, variables)?;
+    replace_more_variables(&mut s, &status.variables)?;
     *chars = s.chars().collect::<Vec<_>>();
 
     Ok(())

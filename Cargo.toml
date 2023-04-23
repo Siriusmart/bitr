@@ -1,6 +1,6 @@
 [package]
 name = "bitr"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Siriusmart <siriusmart@tuta.io>"]
 description = "Minimal BitScript interpreter."
 homepage = "https://siriusmart.github.io/bitscript"
@@ -10,7 +10,7 @@ readme = "README.md"
 edition = "2021"
 keywords = ["bitscript","logic", "gates", "language", "simulator"]
 categories = ["simulation"]
-exclude = ["/docs", "/LICENSE", "/examples"]
+exclude = ["/docs", "/LICENSE", "/examples", "/std"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

@@ -9,6 +9,7 @@
 	- [Gates](./syntax/gates.md)
 	- [Input](./syntax/input.md)
 	- [Casting](./syntax/casting.md)
+    - [Functions](./syntax/functions.md)
 
 # Bitr
 

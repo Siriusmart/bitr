@@ -1,12 +1,10 @@
-disp This is an 8-bit adder - it can add any two 8-bit numbers together and display the C.\n
+# extremely similar to eight-bit-adder.bs
 
 dclr A 8 0
 dclr B 8 0
 
-disp 'Enter the first number in denary (base 10): '
-inpt d A
-disp 'Enter the second number in denary (base 10): '
-inpt d B
+inpt A
+inpt B
 
 dclr U 7 0
 dclr C 8 0
@@ -27,5 +25,4 @@ C[6] = XOR(A[6], B[6], U[5])
 U[6] = OR(AND(XNOR(A[6], B[6], U[5]), NAND(NOT(A[6], B[6], U[5]))), AND(A[6], B[6], U[5]))
 C[7] = XOR(A[7], B[7], U[6])
 
-disp {A}+{B}={C}\n
-disp {DEN(A)}+{DEN(B)}={DEN(C)}\n
+exit C

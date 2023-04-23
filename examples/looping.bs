@@ -1,0 +1,12 @@
+reg add add-function # registers the component at `./add-function.bs`
+# reg {function name} {file name}
+
+dclr counter 8
+
+lbl begin
+	disp Current loop is {DEN(counter)}\n
+	counter = add(counter, 1) # increment the counter by 1
+	if AND(counter), goto exit
+goto begin
+
+lbl exit

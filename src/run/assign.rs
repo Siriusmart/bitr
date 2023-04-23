@@ -1,26 +1,20 @@
 use std::collections::HashMap;
 
-use crate::{char_to_bool, eval, get_range_mut, replace_variables, str_to_bool, BracketInfo};
+use crate::*;
 
-pub fn assign(
-    assigned: &str,
-    value: &str,
-    variables: &mut HashMap<String, Vec<bool>>,
-    radix: u32,
-) -> Result<(), String> {
+pub fn assign(assigned: &str, value: &str, status: &mut Status, radix: u32) -> Result<(), String> {
     let assigned = assigned
         .chars()
         .filter(|c| !c.is_whitespace())
         .collect::<Vec<_>>();
     let mut value = value
-        .to_string()
         .chars()
         .skip(1)
         .filter(|c| !c.is_whitespace())
         .collect::<Vec<_>>();
 
-    replace_variables(&mut value, variables)?;
-    eval(&mut value)?;
+    replace_variables(&mut value, status)?;
+    eval(&mut value, status)?;
     let value = value.iter().collect::<String>();
 
     if *assigned.last().unwrap_or(&' ') == ']' {
@@ -39,7 +33,7 @@ pub fn assign(
                     .collect(),
             },
             &value,
-            variables,
+            status,
             radix,
         )?;
         return Ok(());
@@ -48,7 +42,7 @@ pub fn assign(
     assign_multiple(
         assigned.iter().collect::<String>().as_str(),
         &value,
-        variables,
+        &mut status.variables,
         radix,
     )
 }
@@ -83,7 +77,7 @@ pub fn assign_arr(mut assign_to: Vec<&mut bool>, value: &str, radix: u32) -> Res
 
     e?;
 
-    let mut binary_value = format!("{:b}", value);
+    let mut binary_value = format!("{value:b}");
     binary_value = format!(
         "{}{binary_value}",
         "0".repeat(if assign_to.len() > binary_value.len() {
@@ -119,23 +113,13 @@ fn assign_multiple(
 fn assign_single(
     mut bracket_info: BracketInfo,
     value: &str,
-    variables: &mut HashMap<String, Vec<bool>>,
+    status: &mut Status,
     radix: u32,
 ) -> Result<(), String> {
     let mut chars = bracket_info.content.chars().collect::<Vec<_>>();
-    replace_variables(&mut chars, variables)?;
-    eval(&mut chars)?;
+    replace_variables(&mut chars, status)?;
+    eval(&mut chars, status)?;
     bracket_info.content = chars.iter().collect();
-
-    let arr = match variables.get_mut(&bracket_info.name) {
-        Some(arr) => arr,
-        None => {
-            return Err(format!(
-                "cannot use undeclared variable `{}`",
-                bracket_info.name
-            ))
-        }
-    };
 
     if let [begin, end] = bracket_info
         .content
@@ -145,8 +129,17 @@ fn assign_single(
     {
         let mut begin = begin.chars().collect();
         let mut end = end.chars().collect();
-        eval(&mut begin)?;
-        eval(&mut end)?;
+        eval(&mut begin, status)?;
+        eval(&mut end, status)?;
+        let arr = match status.variables.get_mut(&bracket_info.name) {
+            Some(arr) => arr,
+            None => {
+                return Err(format!(
+                    "cannot use undeclared variable `{}`",
+                    bracket_info.name
+                ))
+            }
+        };
 
         let range = get_range_mut(
             &bracket_info.name,
@@ -157,6 +150,17 @@ fn assign_single(
         assign_arr(range, value, radix)?;
         return Ok(());
     }
+    let mut value = value.chars().collect::<Vec<_>>();
+    eval(&mut value, status)?;
+    let arr = match status.variables.get_mut(&bracket_info.name) {
+        Some(arr) => arr,
+        None => {
+            return Err(format!(
+                "cannot use undeclared variable `{}`",
+                bracket_info.name
+            ))
+        }
+    };
 
     let index = match bracket_info.content.parse::<usize>() {
         Ok(n) => n,
@@ -177,8 +181,6 @@ fn assign_single(
             ))
         }
     };
-    let mut value = value.chars().collect::<Vec<_>>();
-    eval(&mut value)?;
 
     *cell = str_to_bool(&value.iter().collect::<String>())?;
 

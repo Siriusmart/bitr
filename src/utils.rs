@@ -49,7 +49,7 @@ where
 {
     match s.parse::<T>() {
         Ok(n) => Ok(n),
-        Err(_e) => Err(format!("cannot parse `{} as usize`", s)),
+        Err(_e) => Err(format!("cannot parse `{s} as usize`")),
     }
 }
 

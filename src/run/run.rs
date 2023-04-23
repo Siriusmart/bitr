@@ -1,23 +1,15 @@
 #![allow(clippy::module_inception)]
 
-use std::{
-    collections::HashMap,
-    io::{self, Write},
-};
+use std::io::{self, Write};
 
-use crate::{
-    assign, char_to_radix, display_eval, escape, eval, input, replace_variables, str_to_bool,
-};
+use crate::*;
 
-pub fn run_line(
-    line: &mut String,
-    variables: &mut HashMap<String, Vec<bool>>,
-) -> Result<(), String> {
-    let (code, _comment) = line.split_at(line.find('#').unwrap_or(line.len()));
+pub fn run_line(line: &mut str, status: &mut Status) -> Result<Option<String>, String> {
+    let code = line.split('#').next().unwrap();
     let mut code = code.trim().to_owned();
 
     if code.is_empty() {
-        return Ok(());
+        return Ok(None);
     }
 
     escape(&mut code);
@@ -39,14 +31,18 @@ pub fn run_line(
                 Err(_e) => return Err(format!("unable to parse `{length}` as usize")),
             };
 
-            if variables
+            if status
+                .variables
                 .insert(name.to_string(), vec![str_to_bool(default)?; length])
                 .is_some()
             {
                 return Err(format!("multiple declaration of variable `{name}`"));
             }
-
-            return Ok(());
+        }
+        ["del", name] => {
+            if status.variables.remove(*name).is_none() {
+                return Err(format!("cannot delete undeclared variable `{name}`"));
+            }
         }
         ["dbg"] => {
             return Err(String::from(
@@ -56,8 +52,8 @@ pub fn run_line(
         ["dbg", ..] => {
             let value_label = splitted[1..].join(" ");
             let mut value = value_label.chars().collect::<Vec<_>>();
-            replace_variables(&mut value, variables)?;
-            eval(&mut value)?;
+            replace_variables(&mut value, status)?;
+            eval(&mut value, status)?;
             println!("{value_label}: {}", value.into_iter().collect::<String>());
         }
         ["disp"] => {
@@ -67,7 +63,7 @@ pub fn run_line(
         }
         ["disp", ..] => {
             let mut chars = splitted[1..].join(" ").chars().collect::<Vec<_>>();
-            display_eval(&mut chars, variables)?;
+            display_eval(&mut chars, status)?;
             print!("{}", chars.into_iter().collect::<String>());
             io::stdout().flush().expect("cannot write to stdout");
         }
@@ -90,7 +86,55 @@ pub fn run_line(
             };
 
             let chars = splitted[1..].join(" ").chars().collect::<Vec<_>>();
-            input(&chars, variables, radix)?;
+            input(&chars, status, radix)?;
+        }
+        ["lbl", _label] => {}
+        ["goto", label] => match status.labels.get(label.to_string().as_str()) {
+            Some(position) => status.line_no = *position,
+            None => return Err(format!("use of undeclared label `{label}`")),
+        },
+        ["if", ..] => {
+            let args_owner = splitted[1..].join(" ");
+            let args = args_owner.splitn(2, ',').collect::<Vec<_>>();
+
+            let mut condition = format!("AND({})", args[0]).chars().collect();
+            let mut action = args[1].to_string();
+
+            replace_variables(&mut condition, status)?;
+            eval(&mut condition, status)?;
+
+            if condition.as_slice() == ['1'] {
+                return run_line(&mut action, status);
+            }
+        }
+        ["exit", ..] => {
+            let mut value = splitted[1..].join(" ").chars().collect();
+
+            replace_variables(&mut value, status)?;
+            eval(&mut value, status)?;
+            return Ok(Some(value.iter().collect()));
+        }
+        ["reg", name, ..] => {
+            if status.components.contains_key(*name) {
+                return Err(format!("multiple registration of component `{name}`"));
+            }
+
+            let path = splitted[2..].join(" ");
+
+            let (compnent_status, lines) =
+                match Status::try_from_path(&path, Some(status.path.clone())) {
+                    Some(status) => status,
+                    None => return Err(format!("failed to load component {name}")),
+                };
+
+            status
+                .components
+                .insert(name.to_string(), (lines, compnent_status));
+        }
+        ["dereg", name] => {
+            if status.components.remove(*name).is_none() {
+                return Err(format!("cannot dereg unregistered component `{name}`"));
+            }
         }
         _ => {
             if let Some(index) = code.find('=') {
@@ -108,12 +152,15 @@ pub fn run_line(
                     }
                     Err(_) => 2,
                 };
-                assign(assigned, value, variables, radix)?;
-                return Ok(());
+                assign(assigned, value, status, radix)?;
+                return Ok(None);
+            } else {
+                let mut chars = code.chars().collect();
+                replace_variables(&mut chars, status)?;
+                eval(&mut chars, status)?;
             }
-            return Err(format!("unrecognised pattern `{code}`"));
         }
     };
 
-    Ok(())
+    Ok(None)
 }

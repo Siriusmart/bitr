@@ -1,6 +1,6 @@
-use std::{collections::HashMap, env, fs};
+use std::env;
 
-use bitr::{repl, run_line, HELP_MSG};
+use bitr::*;
 
 fn main() {
     let args = env::args().skip(1).collect::<Vec<_>>();
@@ -20,32 +20,18 @@ fn main() {
             return;
         }
         ["help"] => {
-            println!("{HELP_MSG}");
+            help_msg();
             return;
         }
         _ => {}
     }
 
-    let script = match fs::read_to_string(&args[0]) {
-        Ok(s) => s,
-        Err(_) => {
-            let new_path = format!("{}.bs", args[0]);
-            match fs::read_to_string(&new_path) {
-                Ok(s) => s,
-                Err(_) => {
-                    println!("Cannot open file at {} or {new_path}", args[0]);
-                    return;
-                }
-            }
-        }
+    let (status, lines) = match Status::try_from_path(&args[0], None) {
+        Some(status) => status,
+        None => return,
     };
 
-    let mut variables: HashMap<String, Vec<bool>> = HashMap::new();
-
-    for (index, line) in script.lines().enumerate() {
-        if let Err(e) = run_line(&mut line.to_string(), &mut variables) {
-            println!("---\n\x1b[37mProgram has been terminated with reason: \x1b[91m{e}\x1b[32m\n{} \x1b[0m| \x1b[33m{line}\x1b[0m", index + 1);
-            break;
-        }
+    if run_script(status, lines).is_none() {
+        terminated_due_to_above_errors();
     }
 }
